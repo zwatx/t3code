@@ -702,9 +702,17 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "codex-micro-agent-keys",
-    title: "Agent keys",
+    title: "Codex Micro controls",
     to: "/settings/integrations",
-    searchTerms: ["codex micro threads slots lights reassign"],
+    searchTerms: [
+      "codex micro agent keys threads slots lights reassign buttons keymap dial knob joystick",
+    ],
+  },
+  {
+    id: "codex-micro-dictation",
+    title: "Codex Micro dictation",
+    to: "/settings/integrations",
+    searchTerms: ["codex micro microphone mic voice push to talk hands-free wispr flow shortcut"],
   },
   {
     id: "browser-profiles",

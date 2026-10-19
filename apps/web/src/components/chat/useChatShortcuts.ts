@@ -1,6 +1,6 @@
 import type { KeybindingCommand, ResolvedKeybindingsConfig } from "@t3tools/contracts";
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { onAppCommand, type AppCommand } from "../../appCommandBus";
+import { isDeviceAppCommand, onAppCommand, type AppCommand } from "../../appCommandBus";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
 import { resolveChatShortcutCommand, type ShortcutMatchContext } from "../../keybindings";
 import { isTerminalCloseConfirmPending } from "../../lib/terminalCloseConfirm";
@@ -28,7 +28,7 @@ export interface ChatShortcutsInput {
   /** Types a printable key into the composer; false when it could not take it. */
   readonly typeIntoComposer: (key: string) => boolean;
   readonly closeThreadFind: () => void;
-  /** `composer.submit` has no key chord; only device input dispatches it. */
+  /** Device commands such as `composer.submit` have no key chord; only device input dispatches them. */
   readonly commands: Partial<Record<AppCommand, ChatShortcutHandler>>;
   /** Handles commands not in `commands`, such as project scripts. */
   readonly fallback: (command: KeybindingCommand) => ChatShortcutHandler | undefined;
@@ -103,7 +103,7 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
       if (!current.enabled || isCommandPaletteOpen()) return false;
       const run =
         current.commands[command] ??
-        (command === "composer.submit" ? undefined : current.fallback(command));
+        (isDeviceAppCommand(command) ? undefined : current.fallback(command));
       return (
         run !== undefined &&
         run({ event: { repeat: false }, terminalFocusOwner: getTerminalFocusOwner() }) !== false

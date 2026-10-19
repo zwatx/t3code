@@ -2,7 +2,17 @@ import type { KeybindingCommand } from "@t3tools/contracts";
 
 // Lets non-keyboard inputs, such as a Codex Micro, run the same command
 // handlers as keyboard shortcuts, including their permission checks.
-export type AppCommand = KeybindingCommand | "composer.submit";
+export type AppCommand = KeybindingCommand | DeviceAppCommand;
+
+/** Commands only devices dispatch; no key chord or keybinding fallback runs them. */
+export type DeviceAppCommand =
+  | "composer.submit"
+  /** Focuses the open thread's message field so external dictation types there. */
+  | "composer.focus";
+
+export function isDeviceAppCommand(command: AppCommand): command is DeviceAppCommand {
+  return command === "composer.submit" || command === "composer.focus";
+}
 
 const APP_COMMAND_EVENT = "t3code:app-command";
 

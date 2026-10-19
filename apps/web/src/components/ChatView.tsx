@@ -5597,6 +5597,7 @@ export default function ChatView(props: ChatViewProps) {
         if (!composerRef.current) return false;
         composerRef.current.submit();
       },
+      "composer.focus": () => composerRef.current?.focusForExternalInput() ?? false,
       "modelPicker.toggle": ({ event }) => {
         if (!event.repeat) composerRef.current?.toggleModelPicker();
       },

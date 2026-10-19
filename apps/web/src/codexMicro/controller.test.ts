@@ -5,46 +5,101 @@ import {
   CodexMicroKeyTracker,
   adjacentSlot,
   assignSlots,
+  assignThreadToSlot,
   joystickDirection,
   slotLighting,
 } from "./controller";
+import { defaultCodexMicroConfig, type CodexMicroConfig } from "./config";
+
+const config = defaultCodexMicroConfig("mac");
 
 describe("Codex Micro keys", () => {
   it("acts once per press and ignores repeats until release", () => {
     const keys = new CodexMicroKeyTracker();
 
-    expect(keys.handle("AG03", 1)).toEqual({ type: "slot", slot: 3 });
-    expect(keys.handle("AG03", 1)).toBeNull();
-    expect(keys.handle("AG03", 0)).toBeNull();
-    expect(keys.handle("AG03", 1)).toEqual({ type: "slot", slot: 3 });
+    expect(keys.handle("AG03", 1, config)).toEqual({ type: "slot", slot: 3 });
+    expect(keys.handle("AG03", 1, config)).toBeNull();
+    expect(keys.handle("AG03", 0, config)).toBeNull();
+    expect(keys.handle("AG03", 1, config)).toEqual({ type: "slot", slot: 3 });
   });
 
-  it("maps action keys to app commands and ignores the second half of the double key", () => {
+  it("maps action keys to their configured actions and ignores the second half of the wide key", () => {
     const keys = new CodexMicroKeyTracker();
 
-    expect(keys.handle("ACT06", 1)).toEqual({ type: "command", command: "chat.new" });
-    expect(keys.handle("ACT08", 1)).toEqual({ type: "command", command: "thread.stop" });
-    expect(keys.handle("ACT10", 1)).toEqual({ type: "command", command: "terminal.toggle" });
-    expect(keys.handle("ACT11", 1)).toBeNull();
-    expect(keys.handle("AG06", 1)).toBeNull();
+    expect(keys.handle("ACT06", 1, config)).toEqual({ type: "command", command: "chat.new" });
+    expect(keys.handle("ACT08", 1, config)).toEqual({ type: "command", command: "thread.stop" });
+    expect(keys.handle("ACT12", 1, config)).toEqual({ type: "command", command: "diff.toggle" });
+    expect(keys.handle("ACT10", 1, config)).toEqual({
+      type: "dictation",
+      key: "ACT10",
+      phase: "press",
+    });
+    expect(keys.handle("ACT11", 1, config)).toBeNull();
+    expect(keys.handle("ACT11", 0, config)).toBeNull();
+    expect(keys.handle("AG06", 1, config)).toBeNull();
+  });
+
+  it("reports dictation releases with the action the key had when pressed", () => {
+    const keys = new CodexMicroKeyTracker();
+    const remapped: CodexMicroConfig = {
+      ...config,
+      keys: { ...config.keys, ACT10: { type: "command", command: "terminal.toggle" } },
+    };
+
+    expect(keys.handle("ACT10", 1, config)?.type).toBe("dictation");
+    expect(keys.handle("ACT10", 1, remapped)).toBeNull();
+    expect(keys.handle("ACT10", 0, remapped)).toEqual({
+      type: "dictation",
+      key: "ACT10",
+      phase: "release",
+    });
+    expect(keys.handle("ACT10", 1, remapped)).toEqual({
+      type: "command",
+      command: "terminal.toggle",
+    });
+    expect(keys.handle("ACT10", 0, config)).toBeNull();
+  });
+
+  it("does nothing for keys set to no action", () => {
+    const keys = new CodexMicroKeyTracker();
+    const cleared: CodexMicroConfig = {
+      ...config,
+      keys: { ...config.keys, ACT07: { type: "none" } },
+    };
+
+    expect(keys.handle("ACT07", 1, cleared)).toBeNull();
+    expect(keys.handle("ACT07", 0, cleared)).toBeNull();
   });
 
   it("steps reasoning on every dial detent and opens the picker on press", () => {
     const keys = new CodexMicroKeyTracker();
 
-    expect(keys.handle("ENC_CW", 2)).toEqual({
+    expect(keys.handle("ENC_CW", 2, config)).toEqual({
       type: "command",
       command: "composer.increaseEffort",
     });
-    expect(keys.handle("ENC_CW", 2)).toEqual({
+    expect(keys.handle("ENC_CW", 2, config)).toEqual({
       type: "command",
       command: "composer.increaseEffort",
     });
-    expect(keys.handle("ENC_CC", 2)).toEqual({
+    expect(keys.handle("ENC_CC", 2, config)).toEqual({
       type: "command",
       command: "composer.decreaseEffort",
     });
-    expect(keys.handle("ENC_SW", 1)).toEqual({ type: "command", command: "composer.effort" });
+    expect(keys.handle("ENC_SW", 1, config)).toEqual({
+      type: "command",
+      command: "composer.effort",
+    });
+  });
+
+  it("follows the configured dial turn", () => {
+    const keys = new CodexMicroKeyTracker();
+    const threads: CodexMicroConfig = { ...config, dial: { ...config.dial, turn: "threads" } };
+    const off: CodexMicroConfig = { ...config, dial: { ...config.dial, turn: "none" } };
+
+    expect(keys.handle("ENC_CW", 2, threads)).toEqual({ type: "thread", direction: "next" });
+    expect(keys.handle("ENC_CC", 2, threads)).toEqual({ type: "thread", direction: "previous" });
+    expect(keys.handle("ENC_CW", 2, off)).toBeNull();
   });
 });
 
@@ -60,16 +115,28 @@ describe("Codex Micro joystick", () => {
   it("fires once per deflection and rearms near center", () => {
     const joystick = new CodexMicroJoystickTracker();
 
-    expect(joystick.handle(0.75, 0.9)).toBe("previous");
+    expect(joystick.handle(0.75, 0.9)).toBe("up");
     expect(joystick.handle(0.76, 1)).toBeNull();
     expect(joystick.handle(0.75, 0.4)).toBeNull();
     expect(joystick.handle(0.75, 0.9)).toBeNull();
     expect(joystick.handle(0.75, 0.1)).toBeNull();
-    expect(joystick.handle(0.25, 0.9)).toBe("next");
+    expect(joystick.handle(0.25, 0.9)).toBe("down");
+    expect(joystick.handle(0.5, 0.9)).toBe("left");
   });
 });
 
 describe("Codex Micro agent key slots", () => {
+  it("puts a chosen thread on a key and swaps it off its old key", () => {
+    const slots = ["a", "b", "c", null, null, null];
+
+    expect(assignThreadToSlot(slots, 3, "d")).toEqual(["a", "b", "c", "d", null, null]);
+    expect(assignThreadToSlot(slots, 0, "c")).toEqual(["c", "b", "a", null, null, null]);
+    expect(assignThreadToSlot(slots, 4, "b")).toEqual(["a", null, "c", null, "b", null]);
+    expect(assignThreadToSlot(slots, 1, null)).toEqual(["a", null, "c", null, null, null]);
+    expect(assignThreadToSlot([], 2, "x")).toEqual([null, null, "x", null, null, null]);
+    expect(assignThreadToSlot(slots, 6, "x")).toEqual(slots);
+  });
+
   it("keeps threads on their keys when candidate order changes", () => {
     const available = new Set(["a", "b", "c"]);
     const first = assignSlots([], ["a", "b", "c"], available);

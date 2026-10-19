@@ -1428,6 +1428,11 @@ const ComposerFooterPrimaryActions = memo(function ComposerFooterPrimaryActions(
 
 export interface ChatComposerHandle {
   focusAtEnd: () => void;
+  /**
+   * Focuses the message field for text typed from outside the app, such as
+   * dictation. False when the field cannot take text or focus did not land.
+   */
+  focusForExternalInput: () => boolean;
   focusAt: (cursor: number) => void;
   restoreAfterTimelineReachedEnd: () => void;
   collapseForTimelineScrollKey: (key: string) => void;
@@ -2798,6 +2803,12 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const activePendingUserInput = pendingUserInputs[0] ?? null;
   const isChoiceOnlyPendingQuestion =
     activePendingProgress?.activeQuestion?.allowCustomAnswer === false;
+  const composerEditorDisabled =
+    isConnecting ||
+    isComposerApprovalState ||
+    projectSelectionRequired ||
+    isChoiceOnlyPendingQuestion ||
+    activePendingIsResponding;
   const showComposerTopDrawer =
     isComposerApprovalState ||
     pendingUserInputs.length > 0 ||
@@ -6011,6 +6022,17 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       focusAtEnd: () => {
         composerEditorRef.current?.focusAtEnd();
       },
+      focusForExternalInput: () => {
+        const editor = composerEditorRef.current;
+        if (!editor || !canOperateThread || composerEditorDisabled) return false;
+        editor.focusAtEnd();
+        const focused = document.activeElement;
+        return (
+          focused instanceof HTMLElement &&
+          focused.isContentEditable &&
+          (composerFormRef.current?.contains(focused) ?? false)
+        );
+      },
       focusAt: (cursor: number) => {
         composerEditorRef.current?.focusAt(cursor);
       },
@@ -6319,6 +6341,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       getTimelineScrollableNode,
       isTimelineAtLogicalEnd,
       setIsComposerScrollCollapsed,
+      canOperateThread,
+      composerEditorDisabled,
     ],
   );
 
@@ -7125,13 +7149,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                                   ? DISCONNECTED_COMPOSER_PLACEHOLDER
                                   : "Ask anything, @tag files/folders, $use skills, or / for commands"
                     }
-                    disabled={
-                      isConnecting ||
-                      isComposerApprovalState ||
-                      projectSelectionRequired ||
-                      isChoiceOnlyPendingQuestion ||
-                      activePendingIsResponding
-                    }
+                    disabled={composerEditorDisabled}
                   />
                 </ComposerContextActionsContext>
                 {isComposerResting ? collapsedComposerImagePreviews : null}
