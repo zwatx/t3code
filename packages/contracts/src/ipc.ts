@@ -20,6 +20,12 @@ import type {
   DesktopAppActivationResponse,
 } from "./desktopAppActivation.ts";
 
+import type {
+  DesktopDictationInput,
+  DesktopDictationResult,
+  DesktopDictationState,
+} from "./desktopDictation.ts";
+
 export interface ContextMenuItem<T extends string = string> {
   id: T;
   label: string;
@@ -1022,7 +1028,7 @@ export const DesktopPreviewRecordingSaveInputSchema = Schema.Struct({
   data: Schema.Uint8Array,
 });
 
-export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access"]);
+export const SystemSettingsPaneSchema = Schema.Literals(["full-disk-access", "accessibility"]);
 export type SystemSettingsPane = typeof SystemSettingsPaneSchema.Type;
 
 export interface DesktopBridge {
@@ -1110,6 +1116,8 @@ export interface DesktopBridge {
   openExternal: (url: string) => Promise<boolean>;
   openSystemSettings?: (pane: SystemSettingsPane) => Promise<boolean>;
   checkSystemPermission?: (pane: SystemSettingsPane) => Promise<boolean>;
+  getDictationState?: () => Promise<DesktopDictationState>;
+  sendDictationInput?: (input: DesktopDictationInput) => Promise<DesktopDictationResult>;
   /**
    * Optional: older desktop builds lack it; callers fall back to VS Code only.
    */

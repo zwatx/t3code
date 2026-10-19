@@ -199,6 +199,9 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   cancelProviderAuthCallback: (url: string) =>
     ipcRenderer.invoke(IpcChannels.CANCEL_PROVIDER_AUTH_CALLBACK_CHANNEL, url),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
+  getDictationState: () => ipcRenderer.invoke(IpcChannels.GET_DICTATION_STATE_CHANNEL, undefined),
+  sendDictationInput: (input) =>
+    ipcRenderer.invoke(IpcChannels.SEND_DICTATION_INPUT_CHANNEL, input),
   checkSystemPermission: (pane: string) =>
     ipcRenderer.invoke(IpcChannels.CHECK_SYSTEM_PERMISSION_CHANNEL, pane),
   openSystemSettings: (pane: string) =>

@@ -10,13 +10,15 @@ import { vi } from "vite-plus/test";
 
 import type * as Electron from "electron";
 
-const { focusedWebContents, ownerWindow } = vi.hoisted(() => ({
+const { focusedWebContents, ownerWindow, trustedAccessibility } = vi.hoisted(() => ({
   focusedWebContents: vi.fn(),
   ownerWindow: vi.fn(),
+  trustedAccessibility: vi.fn(() => true),
 }));
 vi.mock("electron", () => ({
   webContents: { getFocusedWebContents: focusedWebContents },
   BrowserWindow: { fromWebContents: ownerWindow },
+  systemPreferences: { isTrustedAccessibilityClient: trustedAccessibility },
 }));
 
 import * as DesktopBackendConfiguration from "../../backend/DesktopBackendConfiguration.ts";
@@ -25,13 +27,33 @@ import * as DesktopBackendPool from "../../backend/DesktopBackendPool.ts";
 import * as ElectronDialog from "../../electron/ElectronDialog.ts";
 import * as ElectronWindow from "../../electron/ElectronWindow.ts";
 import * as DesktopAppSettings from "../../settings/DesktopAppSettings.ts";
+import * as DesktopEnvironment from "../../app/DesktopEnvironment.ts";
 import {
   getLocalEnvironmentBootstraps,
   getWindowFullscreenState,
   pasteAsText,
   pickProjectFavicon,
   probeRemoteEditors,
+  checkSystemPermission,
 } from "./window.ts";
+
+describe("Accessibility permission", () => {
+  it.effect.each([true, false])(
+    "returns the native grant (%s) without requesting it",
+    (granted) => {
+      trustedAccessibility.mockClear().mockReturnValue(granted);
+      return Effect.gen(function* () {
+        const result = yield* checkSystemPermission.handler("accessibility").pipe(
+          Effect.provideService(DesktopEnvironment.DesktopEnvironment, {
+            platform: "darwin",
+          } as DesktopEnvironment.DesktopEnvironment["Service"]),
+        );
+        assert.strictEqual(result, granted);
+        assert.deepEqual(trustedAccessibility.mock.calls, [[false]]);
+      }).pipe(Effect.provide(NodeServices.layer));
+    },
+  );
+});
 
 const readyWslConfig: DesktopBackendManager.DesktopBackendStartConfig = {
   executablePath: "wsl.exe",

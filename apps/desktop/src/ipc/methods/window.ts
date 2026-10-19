@@ -302,7 +302,10 @@ export const openSystemSettings = DesktopIpc.makeIpcMethod({
     const opened = yield* shell.openSystemSettings(pane);
     if (opened && environment.isPackaged) {
       const permissions = yield* MacPermissions.MacPermissions;
-      const isGranted = yield* safariPermissionCheck;
+      const isGranted =
+        pane === "accessibility"
+          ? () => Promise.resolve(Electron.systemPreferences.isTrustedAccessibilityClient(false))
+          : yield* safariPermissionCheck;
       yield* permissions.showHelper(pane, owner, isGranted);
     }
     return opened;
@@ -395,9 +398,11 @@ export const checkSystemPermission = DesktopIpc.makeIpcMethod({
   channel: IpcChannels.CHECK_SYSTEM_PERMISSION_CHANNEL,
   payload: SystemSettingsPaneSchema,
   result: Schema.Boolean,
-  handler: Effect.fn("desktop.ipc.window.checkSystemPermission")(function* () {
+  handler: Effect.fn("desktop.ipc.window.checkSystemPermission")(function* (pane) {
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     if (environment.platform !== "darwin") return false;
+    if (pane === "accessibility")
+      return Electron.systemPreferences.isTrustedAccessibilityClient(false);
     const check = yield* safariPermissionCheck;
     return yield* Effect.promise(check);
   }),
