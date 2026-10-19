@@ -1,5 +1,6 @@
 import type { KeybindingCommand, ResolvedKeybindingsConfig } from "@t3tools/contracts";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { onAppCommand, type AppCommand } from "../../appCommandBus";
 import { isCommandPaletteOpen } from "../../commandPaletteBus";
 import { resolveChatShortcutCommand, type ShortcutMatchContext } from "../../keybindings";
 import { isTerminalCloseConfirmPending } from "../../lib/terminalCloseConfirm";
@@ -12,7 +13,7 @@ import { shouldTypeToFocusComposer } from "./composerFocusRedirect";
 
 /** Runs a command. Returning false lets the key event through untouched. */
 export type ChatShortcutHandler = (context: {
-  readonly event: KeyboardEvent;
+  readonly event: { readonly repeat: boolean };
   readonly terminalFocusOwner: TerminalFocusOwner | null;
 }) => boolean | void;
 
@@ -27,7 +28,8 @@ export interface ChatShortcutsInput {
   /** Types a printable key into the composer; false when it could not take it. */
   readonly typeIntoComposer: (key: string) => boolean;
   readonly closeThreadFind: () => void;
-  readonly commands: Partial<Record<KeybindingCommand, ChatShortcutHandler>>;
+  /** `composer.submit` has no key chord; only device input dispatches it. */
+  readonly commands: Partial<Record<AppCommand, ChatShortcutHandler>>;
   /** Handles commands not in `commands`, such as project scripts. */
   readonly fallback: (command: KeybindingCommand) => ChatShortcutHandler | undefined;
 }
@@ -96,9 +98,21 @@ export function useChatShortcuts(input: ChatShortcutsInput) {
       event.preventDefault();
       current.closeThreadFind();
     };
+    const stopAppCommands = onAppCommand((command) => {
+      const current = latest.current;
+      if (!current.enabled || isCommandPaletteOpen()) return false;
+      const run =
+        current.commands[command] ??
+        (command === "composer.submit" ? undefined : current.fallback(command));
+      return (
+        run !== undefined &&
+        run({ event: { repeat: false }, terminalFocusOwner: getTerminalFocusOwner() }) !== false
+      );
+    });
     window.addEventListener("keydown", handler, true);
     window.addEventListener("keydown", dismissFind);
     return () => {
+      stopAppCommands();
       window.removeEventListener("keydown", handler, true);
       window.removeEventListener("keydown", dismissFind);
     };

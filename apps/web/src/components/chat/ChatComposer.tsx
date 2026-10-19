@@ -1450,6 +1450,8 @@ export interface ChatComposerHandle {
   isModelPickerOpen: () => boolean;
   isCaretAtStart: () => boolean;
   compactContext: () => void;
+  /** Sends like the send button, with the same validation and permission checks. */
+  submit: () => void;
   readSnapshot: () => {
     value: string;
     cursor: number;
@@ -6157,6 +6159,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         trigger.click();
       },
       compactContext: compactThreadContextStable,
+      submit: () => submitComposerStable(),
       isModelPickerOpen: () => isComposerModelPickerOpen,
       isCaretAtStart: () => {
         const range = composerEditorRef.current?.readSelectionRange();

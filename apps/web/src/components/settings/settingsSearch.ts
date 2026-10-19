@@ -693,6 +693,20 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["xcode android studio sdk avd runtime"],
   },
   {
+    id: "codex-micro",
+    title: "Codex Micro",
+    to: "/settings/integrations",
+    searchTerms: [
+      "work louder keyboard macropad hid usb bluetooth agent keys lights dial joystick",
+    ],
+  },
+  {
+    id: "codex-micro-agent-keys",
+    title: "Agent keys",
+    to: "/settings/integrations",
+    searchTerms: ["codex micro threads slots lights reassign"],
+  },
+  {
     id: "browser-profiles",
     title: "Browser profiles",
     to: "/settings/integrations",

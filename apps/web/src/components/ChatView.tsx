@@ -5593,6 +5593,10 @@ export default function ChatView(props: ChatViewProps) {
         createNewTerminalStable();
       },
       "diff.toggle": () => onToggleDiffStable(),
+      "composer.submit": () => {
+        if (!composerRef.current) return false;
+        composerRef.current.submit();
+      },
       "modelPicker.toggle": ({ event }) => {
         if (!event.repeat) composerRef.current?.toggleModelPicker();
       },

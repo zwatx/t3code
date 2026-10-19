@@ -3,6 +3,7 @@ import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
 import { useEffect } from "react";
 
+import { onAppCommand } from "../appCommandBus";
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { ThreadRouteView } from "../components/ThreadRouteView";
 import { ThreadLinkPrompt } from "../components/promptLinks/ThreadLinkPrompt";
@@ -66,6 +67,18 @@ function ChatRouteGlobalShortcuts() {
       : false,
   );
   useEffect(() => {
+    const startNewThread = () => {
+      if (!legacySidebarEnabled && projectGroupCount > 1) {
+        openCommandPalette({ open: "new-thread-in" });
+        return;
+      }
+      void startNewThreadFromContext({
+        activeDraftThread,
+        activeThread: activeThread ?? undefined,
+        defaultProjectRef,
+        handleNewThread,
+      });
+    };
     const onWindowKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       const command = resolveShortcutCommand(event, keybindings, {
@@ -124,16 +137,7 @@ function ChatRouteGlobalShortcuts() {
       if (command === "chat.new") {
         event.preventDefault();
         event.stopPropagation();
-        if (!legacySidebarEnabled && projectGroupCount > 1) {
-          openCommandPalette({ open: "new-thread-in" });
-          return;
-        }
-        void startNewThreadFromContext({
-          activeDraftThread,
-          activeThread: activeThread ?? undefined,
-          defaultProjectRef,
-          handleNewThread,
-        });
+        startNewThread();
         return;
       }
 
@@ -179,8 +183,14 @@ function ChatRouteGlobalShortcuts() {
       }
     };
 
+    const stopAppCommands = onAppCommand((command) => {
+      if (command !== "chat.new" || isCommandPaletteOpen()) return false;
+      startNewThread();
+      return true;
+    });
     window.addEventListener("keydown", onWindowKeyDown);
     return () => {
+      stopAppCommands();
       window.removeEventListener("keydown", onWindowKeyDown);
     };
   }, [
